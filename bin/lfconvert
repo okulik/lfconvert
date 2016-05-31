@@ -1,0 +1,74 @@
+#!/usr/bin/env ruby
+
+require 'bundler/setup'
+require 'lfconvert'
+
+require 'optionparser'
+require 'fileutils'
+require 'date'
+
+trap('SIGINT') {puts ''; exit!}
+
+options = {}
+
+opt_parser = OptionParser.new do |opts|
+  opts.banner = 'Usage: lfconvert -a <usd amount> -d <rate date> [options]'
+
+  opts.on('-a', '--amount AMOUNT', 'Use specific USD amount') do |a|
+    amount = Float(a) rescue nil
+    unless amount
+      puts "Invalid amount entered #{a}"
+      exit -1
+    end
+    options[:amount] = BigDecimal.new(a)
+  end
+
+  opts.on('-d', '--rate-date DATE', "Use specific exchange rate's date") do |d|
+    date = Date.parse(d) rescue nil
+    unless date
+      puts "Invalid date entered #{d}"
+      exit -1
+    end
+    options[:date] = date.to_s
+  end
+
+  opts.on('-p', '--precision [PRECISION]', Integer, 'Use specific numeric precision for currency') do |p|
+    precision = Integer(p) rescue nil
+    if precision.nil? || precision < 0 || precision > 6
+      puts "Invalid precision entered #{p}"
+      exit -1
+    end
+    options[:precision] = p.to_i
+  end
+
+  opts.on('-f', '--force-update', 'Force update of cached ECB rates file') do |f|
+    options[:force] = f
+  end
+
+  opts.on_tail('-h', '--help', 'Show this message') do
+    puts opts
+    exit 0
+  end
+end
+
+opt_parser.parse!
+
+if options[:amount].nil?
+  puts 'missing amount'
+  exit -1
+end
+
+if options[:date].nil?
+  puts 'missing date'
+  exit -1
+end
+
+usd_to_eur_converter = LFConvert::UsdToEurConverter.new(options)
+ret = usd_to_eur_converter.convert(options[:amount], options[:date])
+if ret[:code] == 0
+  puts "#{options[:amount].to_s('F')} USD was on #{ret[:nearest_date]} #{ret[:converted_amount]} EUR (at rate #{ret[:rate]})"
+else
+  puts ret[:error]
+end
+
+exit ret[:code]
