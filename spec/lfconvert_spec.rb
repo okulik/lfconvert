@@ -63,24 +63,98 @@ describe LFConvert::UsdToEurConverter do
   describe ".get_rate_and_nearest_date_for_date" do
     let(:rates) { subject.get_rates(FIXTURES_FILE_PATH, 5) }
 
-    it "should return correct rates" do
-      expect(subject.get_rate_and_nearest_date_for_date(rates, '2016-05-30')[:rate]).to eq(BigDecimal.new('1.1139'))
-      expect(subject.get_rate_and_nearest_date_for_date(rates, '2016-05-27')[:rate]).to eq(BigDecimal.new('1.1168'))
-      expect(subject.get_rate_and_nearest_date_for_date(rates, '2016-05-26')[:rate]).to eq(BigDecimal.new('1.1168'))
-      expect(subject.get_rate_and_nearest_date_for_date(rates, '2016-05-25')[:rate]).to eq(BigDecimal.new('1.1146'))
-      expect(subject.get_rate_and_nearest_date_for_date(rates, '2016-05-20')[:rate]).to eq(BigDecimal.new('1.1219'))
-      expect(subject.get_rate_and_nearest_date_for_date(rates, '1999-01-04')[:rate]).to eq(BigDecimal.new('1.1789'))
+    context "there's no rate for the given date in the future" do
+      let(:_ret) { subject.get_rate_and_nearest_date_for_date(rates, '2026-05-30') }
+      let(:rate) { _ret[:rate] }
+      let(:nearest_date) { _ret[:nearest_date] }
+
+      it "should return last known date" do
+        expect(nearest_date).to eq('2016-05-30')
+      end
+
+      it "should return last known rate" do
+        expect(rate).to eq(subject.get_rate_and_nearest_date_for_date(rates, '2016-05-30')[:rate])
+      end
+
+      it "should return correct rate" do
+        expect(rate).to eq(BigDecimal.new('1.1139'))
+      end
+    end
+
+    context "there's a rate for the given date" do
+      let(:_ret) { subject.get_rate_and_nearest_date_for_date(rates, '2016-05-30') }
+      let(:rate) { _ret[:rate] }
+      let(:nearest_date) { _ret[:nearest_date] }
+
+      it "should return given day's date" do
+        expect(nearest_date).to eq('2016-05-30')
+      end
+
+      it "should return correct rate" do
+        expect(rate).to eq(BigDecimal.new('1.1139'))
+      end
+    end
+
+    context "given date is on the weekend" do
+      let(:_ret) { subject.get_rate_and_nearest_date_for_date(rates, '2016-05-28') }
+      let(:rate) { _ret[:rate] }
+      let(:nearest_date) { _ret[:nearest_date] }
+
+      it "should return previous day's date" do
+        expect(nearest_date).to eq('2016-05-27')
+      end
+
+      it "should return last known rate" do
+        expect(rate).to eq(subject.get_rate_and_nearest_date_for_date(rates, '2016-05-27')[:rate])
+      end
+
+      it "should return correct rate" do
+        expect(rate).to eq(BigDecimal.new('1.1168'))
+      end
+    end
+
+    context "given date is before beginning of time" do
+      let(:ret) { subject.get_rate_and_nearest_date_for_date(rates, '1992-01-04') }
+
+      it "should return nil" do
+        expect(ret).to be_nil
+      end
     end
   end
 
   describe ".convert" do
-    it "should return correct converted amounts" do
-      expect(subject.convert(BigDecimal.new('100.0'), '2016-05-30')[:converted_amount]).to eq('89.774665')
-      expect(subject.convert(BigDecimal.new('100.0'), '2016-05-27')[:converted_amount]).to eq('89.541547')
-      expect(subject.convert(BigDecimal.new('100.0'), '2016-05-26')[:converted_amount]).to eq('89.541547')
-      expect(subject.convert(BigDecimal.new('100.0'), '2016-05-25')[:converted_amount]).to eq('89.718284')
-      expect(subject.convert(BigDecimal.new('100.0'), '2016-05-20')[:converted_amount]).to eq('89.134503')
-      expect(subject.convert(BigDecimal.new('100.0'), '1999-01-04')[:converted_amount]).to eq('84.824836')
+    let(:rates) { subject.get_rates(FIXTURES_FILE_PATH, 5) }
+
+    context "there's no rate for the given date in the future" do
+      let(:converted_amount) { subject.convert_from_rates(rates, BigDecimal.new('100.0'), '2026-05-30')[:converted_amount] }
+
+      it "should return last known date's converted amount" do
+        expect(converted_amount).to eq('89.774665')
+      end
+    end
+
+    context "there's a rate for the given date" do
+      let(:converted_amount) { subject.convert_from_rates(rates, BigDecimal.new('100.0'), '2016-05-30')[:converted_amount] }
+
+      it "should return given date's converted amount" do
+        expect(converted_amount).to eq('89.774665')
+      end
+    end
+
+    context "given date is on the weekend" do
+      let(:converted_amount) { subject.convert_from_rates(rates, BigDecimal.new('100.0'), '2016-05-28')[:converted_amount] }
+
+      it "should return previous day's converted amount" do
+        expect(converted_amount).to eq('89.541547')
+      end
+    end
+
+    context "given date is before beginning of time" do
+      let(:ret) { subject.convert_from_rates(rates, BigDecimal.new('100.0'), '1992-01-04') }
+
+      it "should return error" do
+        expect(ret).to include(:error)
+      end
     end
   end
 end

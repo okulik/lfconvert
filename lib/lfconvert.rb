@@ -23,6 +23,10 @@ module LFConvert
         return {code: -1, error: "CEB file is either missing or contains invalid data"}
       end
 
+      convert_from_rates(rates, from_amount, date)
+    end
+
+    def convert_from_rates(rates, from_amount, date)
       rate_dict = get_rate_and_nearest_date_for_date(rates, date)
       if rate_dict.nil?
         return {code: -1, error: "No rate available for date #{date}"}
