@@ -12,7 +12,7 @@ describe LFConvert::UsdToEurConverter do
   describe ".get_rates" do
     context "we use correct number of lines to skip in CSV file" do
       it "should return a proper rates dictionary" do
-        rates = subject.get_rates(File.join(File.dirname(__FILE__), 'fixtures', 'data.csv'), 5)
+        rates = subject.get_rates(FIXTURES_FILE_PATH, 5)
         expect(rates).to include({
           '2016-05-30' => BigDecimal.new('1.1139'),
           '2016-05-27' => BigDecimal.new('1.1168'),
@@ -40,8 +40,7 @@ describe LFConvert::UsdToEurConverter do
   end
 
   describe ".get_nearest_date" do
-    let(:rates) { subject.get_rates(FIXTURES_FILE_PATH, 5) }
-    let(:date_index) { rates.keys.sort }
+    let(:date_index) { subject.get_rates(FIXTURES_FILE_PATH, 5).keys.sort }
 
     it "should return specified date when using existing date" do
       expect(subject.get_nearest_date(date_index, '2016-05-30')).to eq('2016-05-30')
