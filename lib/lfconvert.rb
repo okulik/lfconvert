@@ -19,24 +19,20 @@ module LFConvert
 
     def convert(from_amount, date)
       rates = get_rates_from_ecb
-      if rates.empty?
-        return {code: -1, error: "CEB file is either missing or contains invalid data"}
-      end
+      raise 'CEB file is either missing or contains invalid data' if rates.empty?
 
       convert_from_rates(rates, from_amount, date)
     end
 
     def convert_from_rates(rates, from_amount, date)
       rate_dict = get_rate_and_nearest_date_for_date(rates, date)
-      if rate_dict.nil?
-        return {code: -1, error: "No rate available for date #{date}"}
-      end
+      raise "No rate available for date #{date}" if rate_dict.nil?
 
       rate = rate_dict[:rate]
       nearest_date = rate_dict[:nearest_date]
       converted_amount = from_amount / rate
 
-      return {code: 0, rate: format_money(rate), nearest_date: nearest_date, converted_amount: format_money(converted_amount)}
+      {rate: format_money(rate), nearest_date: nearest_date, converted_amount: format_money(converted_amount)}
     end
 
     def get_rates_from_ecb
@@ -76,11 +72,12 @@ module LFConvert
 
       if File.exist?(rates_file_path)
         File.readlines(rates_file_path).drop(skip_csv_lines).each do |line|
-          m = /(\d{4}-\d{2}-\d{2}),(.*)/.match(line.chomp)
-          break if m.nil?
-
-          date = m[1]; rate = m[2]
-          rates[date] = BigDecimal.new(rate, 2)
+          m = /(\d{4}-\d{2}-\d{2}),(\d+\.\d*)/.match(line.chomp)
+          if m
+            date = m[1]; rate = m[2]
+            bd_rate = BigDecimal.new(rate, 2)
+            rates[date] = bd_rate if bd_rate != BigDecimal.new('0')
+          end
         end
       end
 

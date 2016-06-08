@@ -32,9 +32,9 @@ describe LFConvert::UsdToEurConverter do
     end
 
     context "we didn't skip any lines in CSV file" do
-      it "should return empty dictionary" do
+      it "should return a proper rates dictionary" do
         rates = subject.get_rates(FIXTURES_FILE_PATH, 0)
-        expect(rates).to be_empty
+        expect(rates.count).to eq(6)
       end
     end
   end
@@ -149,10 +149,8 @@ describe LFConvert::UsdToEurConverter do
     end
 
     context "given date is before beginning of time" do
-      let(:ret) { subject.convert_from_rates(rates, BigDecimal.new('100.0'), '1992-01-04') }
-
-      it "should return error" do
-        expect(ret).to include(:error)
+      it "should raise exception" do
+        expect{subject.convert_from_rates(rates, BigDecimal.new('100.0'), '1992-01-04')}.to raise_error(/No rate available for date/)
       end
     end
   end
