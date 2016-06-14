@@ -32,6 +32,30 @@ opt_parser = OptionParser.new do |opts|
     options[:date] = date.to_s
   end
 
+  opts.on('-b', '--batch DATA', 'Convert all given amount/date pairs') do |b|
+    options[:batch] = []
+    b.split('|').each do |pairs|
+      m = LFConvert::UsdToEurConverter::CEB_LINE_RATE_REGEX.match(pairs)
+      if m
+        date = m[1]; amount = m[2]
+
+        date = Date.parse(date) rescue nil
+        unless date
+          puts "Invalid date in batch #{m[1]}"
+          exit -1
+        end
+
+        _amount = Float(amount) rescue nil
+        unless _amount
+          puts "Invalid amount in batch #{m[2]}"
+          exit -1
+        end
+
+        options[:batch] << {date: date.to_s, amount: BigDecimal.new(amount, 2)}
+      end
+    end
+  end
+
   opts.on('-p', '--precision [PRECISION]', Integer, 'Use specific numeric precision for currency') do |p|
     precision = Integer(p) rescue nil
     if precision.nil? || precision < 0 || precision > 6
@@ -45,6 +69,10 @@ opt_parser = OptionParser.new do |opts|
     options[:force] = f
   end
 
+  opts.on('-v', '--verbose', 'Display verbose conversion results') do |v|
+    options[:verbose] = v
+  end
+
   opts.on_tail('-h', '--help', 'Show this message') do
     puts opts
     exit 0
@@ -53,20 +81,37 @@ end
 
 opt_parser.parse!
 
-if options[:amount].nil?
+if options[:amount].nil? && (options[:batch].nil? || options[:batch].empty?)
   puts 'missing amount'
   exit -1
 end
 
-if options[:date].nil?
+if options[:date].nil? && (options[:batch].nil? || options[:batch].empty?)
   puts 'missing date'
   exit -1
 end
 
 begin
   converter = LFConvert::UsdToEurConverter.new(options)
-  ret = converter.convert!(options[:amount], options[:date])
-  puts "#{options[:amount].to_s('F')} USD was on #{ret[:nearest_date]} #{ret[:converted_amount]} EUR (at rate #{ret[:rate]})"
+
+  results = []
+  if options[:batch].nil? || options[:batch].empty?
+    results << converter.convert!(options[:amount], options[:date])
+  else
+    options[:batch].each do |da|
+      results << converter.convert!(da[:amount], da[:date])
+    end
+  end
+
+  if options[:verbose]
+    results.each_with_index do |ret, i|
+      amount = options[:amount] || options[:batch][i][:amount]
+      puts "#{amount.to_s('F')} USD was on #{ret[:nearest_date]} #{ret[:converted_amount]} EUR (at rate #{ret[:rate]})"
+    end
+  else
+    puts results.map{|r|r[:converted_amount]}.join(',')
+  end
+
   exit 0
 rescue => e
   puts e

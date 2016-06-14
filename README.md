@@ -26,8 +26,10 @@ Two required parameters are -a <USD amount> which represent USD amount we want t
 Usage: lfconvert -a <USD amount> -d <rate date> [options]
     -a, --amount AMOUNT              Use specific USD amount
     -d, --rate-date DATE             Use specific exchange rate's date
+    -b, --batch DATA                 Convert all given amount/date pairs
     -p, --precision [PRECISION]      Use specific numeric precision for currency
     -f, --force-update               Force update of cached ECB rates file
+    -v, --verbose                    Display verbose conversion results
     -h, --help                       Show this message
 ```
 
@@ -39,6 +41,11 @@ lfconvert -a 123.45 -d 2016-05-31 -p 2
 If we have a rather old exchange rates file, we might need to update it using the force switch:
 ```sh
 lfconvert -a 123.45 -d 2016-05-31 -p 2 -f
+```
+
+When converting a batch of amounts for different exchange rates:
+```sh
+lfconvert -b "2016-05-20,1.0|2016-05-19,2.0"
 ```
 
 ## Contributing

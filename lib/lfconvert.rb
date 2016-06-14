@@ -5,6 +5,7 @@ require 'bigdecimal'
 module LFConvert
   class UsdToEurConverter
     CEB_CSV_URL = "http://sdw.ecb.europa.eu/export.do?type=&trans=N&node=2018794&CURRENCY=USD&FREQ=D&start=01-01-2012&q=&submitOptions.y=6&submitOptions.x=51&sfl1=4&end=&SERIES_KEY=120.EXR.D.USD.EUR.SP00.A&sfl3=4&DATASET=0&exportType=csv"
+    CEB_LINE_RATE_REGEX = Regexp.new('(\d{4}-\d{2}-\d{2}),(\d+\.\d*)')
     DEFAULT_CONFIG_FOLDER = File.expand_path('~/.lfconvert')
     RATES_FILE_PATH = File.join(DEFAULT_CONFIG_FOLDER, 'rates.csv')
     SKIP_CSV_LINES = 5
@@ -53,7 +54,7 @@ module LFConvert
 
       if File.exist?(rates_file_path)
         File.readlines(rates_file_path).drop(skip_csv_lines).each do |line|
-          m = /(\d{4}-\d{2}-\d{2}),(\d+\.\d*)/.match(line.chomp)
+          m = CEB_LINE_RATE_REGEX.match(line.chomp)
           if m
             date = m[1]; rate = m[2]
             bd_rate = BigDecimal.new(rate, 2)
