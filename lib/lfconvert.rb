@@ -10,51 +10,32 @@ module LFConvert
     SKIP_CSV_LINES = 5
     DEFAULT_NUMERIC_PRECISION = 6
 
-    attr_reader :options
-
     def initialize(options = {})
       @options = options
       @options.merge!(precision: LFConvert::UsdToEurConverter::DEFAULT_NUMERIC_PRECISION) unless @options.has_key?(:precision)
     end
 
-    def convert(from_amount, date)
-      rates = get_rates_from_ecb
-      raise 'CEB file is either missing or contains invalid data' if rates.empty?
-
-      convert_from_rates(rates, from_amount, date)
+    def convert!(from_amount, date)
+      rate, nearest_date = get_rate_and_nearest_date_for_date(date)
+      {rate: format_money(rate), nearest_date: nearest_date, converted_amount: format_money(from_amount / rate)}
     end
 
-    def convert_from_rates(rates, from_amount, date)
-      rate_dict = get_rate_and_nearest_date_for_date(rates, date)
-      raise "No rate available for date #{date}" if rate_dict.nil?
 
-      rate = rate_dict[:rate]
-      nearest_date = rate_dict[:nearest_date]
-      converted_amount = from_amount / rate
+    private
 
-      {rate: format_money(rate), nearest_date: nearest_date, converted_amount: format_money(converted_amount)}
-    end
+    def get_rates
+      @rates ||= begin
+        unless Dir.exist?(DEFAULT_CONFIG_FOLDER)
+          FileUtils::mkdir(DEFAULT_CONFIG_FOLDER)
+          download_rates(get_cached_rates_path, CEB_CSV_URL)
+        end
 
-    def get_rates_from_ecb
-      unless Dir.exist?(DEFAULT_CONFIG_FOLDER)
-        FileUtils::mkdir(DEFAULT_CONFIG_FOLDER)
-        download_rates(RATES_FILE_PATH, CEB_CSV_URL)
+        if !File.exist?(get_cached_rates_path) || @options[:force]
+          download_rates(get_cached_rates_path, CEB_CSV_URL)
+        end
+
+        init_rates_from_file(get_cached_rates_path, SKIP_CSV_LINES)
       end
-
-      if !File.exist?(RATES_FILE_PATH) || options[:force]
-        download_rates(RATES_FILE_PATH, CEB_CSV_URL)
-      end
-
-      get_rates(RATES_FILE_PATH, SKIP_CSV_LINES)
-    end
-
-    def get_rate_and_nearest_date_for_date(rates, date)
-      date_index = rates.keys.sort
-
-      nearest_date = get_nearest_date(date_index, date)
-      return nil if nearest_date.nil?
-
-      {rate: rates[nearest_date], nearest_date: nearest_date}
     end
 
     def download_rates(rates_file_path, ceb_csv_url)
@@ -67,7 +48,7 @@ module LFConvert
       end
     end
 
-    def get_rates(rates_file_path, skip_csv_lines)
+    def init_rates_from_file(rates_file_path, skip_csv_lines)
       rates = {}
 
       if File.exist?(rates_file_path)
@@ -81,15 +62,32 @@ module LFConvert
         end
       end
 
+      raise 'CEB file is either missing or contains invalid data' if rates.empty?
+
       rates
     end
 
-    def get_nearest_date(date_index, date)
-      date_index.select {|d| d <= date}.last
+    def get_rate_and_nearest_date_for_date(date)
+      nearest_date = find_nearest_date(date)
+      [get_rates[nearest_date], nearest_date]
+    end
+
+    def find_nearest_date(date)
+      nearest_date = get_rates_index.select {|d| d <= date}.last
+      raise "No rate available for date #{date}" if nearest_date.nil?
+      nearest_date
+    end
+
+    def get_rates_index
+      @rates_index ||= get_rates.keys.sort
+    end
+
+    def get_cached_rates_path
+      return RATES_FILE_PATH
     end
 
     def format_money(amount)
-      amount.truncate(options[:precision]).to_s('F')
+      amount.truncate(@options[:precision]).to_s('F')
     end
   end
 end

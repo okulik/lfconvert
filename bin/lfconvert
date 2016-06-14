@@ -63,9 +63,9 @@ if options[:date].nil?
   exit -1
 end
 
-converter = LFConvert::UsdToEurConverter.new(options)
 begin
-  ret = converter.convert(options[:amount], options[:date])
+  converter = LFConvert::UsdToEurConverter.new(options)
+  ret = converter.convert!(options[:amount], options[:date])
   puts "#{options[:amount].to_s('F')} USD was on #{ret[:nearest_date]} #{ret[:converted_amount]} EUR (at rate #{ret[:rate]})"
   exit 0
 rescue => e
