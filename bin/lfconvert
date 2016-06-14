@@ -91,10 +91,9 @@ if options[:date].nil? && (options[:batch].nil? || options[:batch].empty?)
   exit -1
 end
 
+converter = LFConvert::UsdToEurConverter.new(options)
+results = []
 begin
-  converter = LFConvert::UsdToEurConverter.new(options)
-
-  results = []
   if options[:batch].nil? || options[:batch].empty?
     results << converter.convert!(options[:amount], options[:date])
   else
@@ -102,18 +101,18 @@ begin
       results << converter.convert!(da[:amount], da[:date])
     end
   end
-
-  if options[:verbose]
-    results.each_with_index do |ret, i|
-      amount = options[:amount] || options[:batch][i][:amount]
-      puts "#{amount.to_s('F')} USD was on #{ret[:nearest_date]} #{ret[:converted_amount]} EUR (at rate #{ret[:rate]})"
-    end
-  else
-    puts results.map{|r|r[:converted_amount]}.join(',')
-  end
-
-  exit 0
 rescue => e
   puts e
   exit -1
 end
+
+if options[:verbose]
+  results.each_with_index do |ret, i|
+    amount = options[:amount] || options[:batch][i][:amount]
+    puts "#{amount.to_s('F')} USD was on #{ret[:nearest_date]} #{ret[:converted_amount]} EUR (at rate #{ret[:rate]})"
+  end
+else
+  puts results.map{|r|r[:converted_amount]}.join(',')
+end
+
+exit 0
